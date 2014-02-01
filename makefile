@@ -1,4 +1,4 @@
-compile:client.o server.o
+all:client.o server.o
 	g++ client.o -o client
 	g++ server.o -o server
 client.o:client.cpp

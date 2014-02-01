@@ -5,9 +5,25 @@
 #include <unistd.h>
 #include <iostream>
 #include <cstdlib>
+#include <dirent.h>
 
 #define PORTNUM 3019
 using namespace std;
+
+/*
+	these are the function we need to implement
+	get
+	put
+	delete
+	ls
+	cd
+	mkdir
+	pwd
+	quit
+
+	threads with pthreads package
+*/
+int ls();
 
 int main(int argc, char* argv[])
 {
@@ -36,7 +52,12 @@ int main(int argc, char* argv[])
 	{
 		printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
 		recv(connect_socket,message,512,0);
-		//int value = atoi(message);
+		string str = message;
+		if(str == "ls") // check received commands
+		{
+				ls();
+		}
+
 		cout << "Message Received: " << message << endl;
 		send(connect_socket,confirm.c_str(),512,0);
 		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); // wait for another connection
@@ -44,4 +65,24 @@ int main(int argc, char* argv[])
 	close(tcp_socket);
 	close(connect_socket);
 	return EXIT_SUCCESS;
+}
+
+int ls()
+{
+	DIR *directory;
+	struct dirent *reader;
+	directory = opendir("."); // open current directory
+	if(directory == NULL)
+	{	
+		perror("Cannot open directory");
+		return -1;
+	}
+	reader = readdir(directory);
+	while(reader != NULL)
+	{
+		cout << reader->d_name << " ";
+
+	}
+	closedir(directory);
+	return 0;
 }

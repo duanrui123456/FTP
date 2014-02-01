@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 	connect(tcp_socket,(struct sockaddr *)&clientaddr,sizeof(struct sockaddr));
 	
 	string info = "";
-	cout << "Enter any string. Enter '0' to quit.\n";
+	cout << "Enter a command.\n";
 	cin >> info;
 	char message[512];
 
