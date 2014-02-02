@@ -10,8 +10,7 @@
 #define PORTNUM 3019
 using namespace std;
 
-/*
-	these are the function we need to implement
+/*	these are the function we need to implement
 	get
 	put
 	delete
@@ -21,17 +20,15 @@ using namespace std;
 	pwd
 	quit
 
-	threads with pthreads package
+	use threads with pthreads package
 */
-int ls();
+void ls();
 
 int main(int argc, char* argv[])
 {
 	int tcp_socket = socket(AF_INET,SOCK_STREAM,0);
 	if(tcp_socket < 0)
-	{
 		perror("cannot create socket");
-	}
 
 	struct sockaddr_in dest;
 	struct sockaddr_in servaddr;
@@ -45,44 +42,51 @@ int main(int argc, char* argv[])
 	listen(tcp_socket,5);
 	int connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize);
 
-	string confirm = "Message Received";
+	const char CONFIRM[] = "Message Received";
+	const char INVALCMD[] = "Invalid Command";
 	char message[512];
 
 	while(connect_socket)
 	{
 		printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
 		recv(connect_socket,message,512,0);
-		string str = message;
-		if(str == "ls") // check received commands
-		{
-				ls();
-		}
+		//cout << "Message Received: " << message << endl;
+		
+		/* check received commands */
+		const string str = message; 
 
-		cout << "Message Received: " << message << endl;
-		send(connect_socket,confirm.c_str(),512,0);
-		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); // wait for another connection
-	}
+		//if(str == "get"){} 
+		//else if(str == "put")
+		//else if(str == "delete")
+		if(str == "ls") ls();
+		//else if(str == "cd")
+		//else if(str == "mkdir")
+		//else if(str == "pwd")
+		//else if(str == "quit")
+		//else
+			//send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
+
+		//send(connect_socket,CONFIRM,512,0);
+		
+		/* wait for another connection */
+		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); 	}
 	close(tcp_socket);
 	close(connect_socket);
 	return EXIT_SUCCESS;
 }
 
-int ls()
+void ls()
 {
 	DIR *directory;
 	struct dirent *reader;
-	directory = opendir("."); // open current directory
+	/* open current directory */
+	directory = opendir("."); 
 	if(directory == NULL)
-	{	
 		perror("Cannot open directory");
-		return -1;
-	}
-	reader = readdir(directory);
-	while(reader != NULL)
-	{
-		cout << reader->d_name << " ";
 
+	while((reader = readdir(directory))!= NULL)
+	{	
+		printf("%s ",reader->d_name);
 	}
 	closedir(directory);
-	return 0;
 }

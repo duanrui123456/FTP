@@ -1,14 +1,14 @@
-all:client.o server.o
-	g++ client.o -o client
-	g++ server.o -o server
-client.o:client.cpp
-	g++ client.cpp -c
-server.o:server.cpp
-	g++ server.cpp -c
+SOURCE=myftpclient.cpp myftpserver.cpp
+OBJECT=$(SOURCE:.cpp=.o)
+all:$(OBJECT)
+	g++ myftpclient.o -o myftp
+	g++ myftpserver.o -o myftpserver
+$(OBJECT):$(SOURCE)
+	g++ $(SOURCE) -c
 run_server:
-	./server
+	./myftpserver
 run_client:
-	./client
+	./myftp
 clean:
-	rm -rf client server *.o
+	rm -rf *.o myftp myftpserver
 

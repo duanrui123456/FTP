@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <iostream>
 
-#define MAXADDRLEN 256
-#define BUFFER 128
 #define PORTNUM 3019
 using namespace std;
 
@@ -26,13 +24,14 @@ int main(int argc, char* argv[])
 		
 	connect(tcp_socket,(struct sockaddr *)&clientaddr,sizeof(struct sockaddr));
 	
-	string info = "";
-	cout << "Enter a command.\n";
-	cin >> info;
+	string command = "";
+	cout << "myftp> ";
+	cin >> command;
+
 	char message[512];
 
-	send(tcp_socket,info.c_str(),512,0);
-	recv(tcp_socket,message,512,0);
-	cout << message << endl;
+	send(tcp_socket,command.c_str(),512,0);
+	//recv(tcp_socket,message,512,0);
+	//cout << message << endl;
 	close(tcp_socket);
 }
