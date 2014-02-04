@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	char message[512];
 
 	send(tcp_socket,command.c_str(),512,0);
-	//recv(tcp_socket,message,512,0);
-	//cout << message << endl;
+	recv(tcp_socket,message,512,0);
+	cout << message << endl;
 	close(tcp_socket);
 }

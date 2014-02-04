@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <dirent.h>
+#include <string>
 
 #define PORTNUM 3019
 using namespace std;
@@ -14,7 +15,7 @@ using namespace std;
 	get
 	put
 	delete
-	ls
+	ls-----------done
 	cd
 	mkdir
 	pwd
@@ -22,7 +23,7 @@ using namespace std;
 
 	use threads with pthreads package
 */
-void ls();
+string ls();
 
 int main(int argc, char* argv[])
 {
@@ -44,38 +45,40 @@ int main(int argc, char* argv[])
 
 	const char CONFIRM[] = "Message Received";
 	const char INVALCMD[] = "Invalid Command";
+	string msg_to_send = "";
 	char message[512];
 
 	while(connect_socket)
 	{
 		printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
 		recv(connect_socket,message,512,0);
-		//cout << "Message Received: " << message << endl;
-		
 		/* check received commands */
-		const string str = message; 
-
+		const string str = message;
 		//if(str == "get"){} 
 		//else if(str == "put")
 		//else if(str == "delete")
-		if(str == "ls") ls();
+		if(str == "ls") 
+		{
+			msg_to_send = ls();
+			send(connect_socket,msg_to_send.c_str(),512,0);
+		}
 		//else if(str == "cd")
 		//else if(str == "mkdir")
 		//else if(str == "pwd")
 		//else if(str == "quit")
-		//else
-			//send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
+		else
+			send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
 
-		//send(connect_socket,CONFIRM,512,0);
 		
 		/* wait for another connection */
-		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); 	}
+		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); 	
+	}
 	close(tcp_socket);
 	close(connect_socket);
 	return EXIT_SUCCESS;
 }
 
-void ls()
+string ls()
 {
 	DIR *directory;
 	struct dirent *reader;
@@ -83,10 +86,20 @@ void ls()
 	directory = opendir("."); 
 	if(directory == NULL)
 		perror("Cannot open directory");
-
+	
+	string message = "";
 	while((reader = readdir(directory))!= NULL)
 	{	
-		printf("%s ",reader->d_name);
+		if(reader->d_name == "." || reader->d_name == "..")
+			//reader = readdir(directory);
+		{}
+		else
+		{
+			message += reader->d_name;
+			message += " ";
+		}
 	}
 	closedir(directory);
+	//cout << message;
+	return message;
 }
