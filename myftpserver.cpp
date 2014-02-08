@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <cstdio>
 #include <cstring>
@@ -9,6 +10,8 @@
 #include <string>
 
 #define PORTNUM 3019
+#define BUF_SIZE 512
+
 using namespace std;
 
 /*	these are the function we need to implement
@@ -16,90 +19,144 @@ using namespace std;
 	put
 	delete
 	ls-----------done
-	cd
-	mkdir
-	pwd
-	quit
+	cd-----------done
+	mkdir--------done
+	pwd----------done
+	quit---------done
 
 	use threads with pthreads package
 */
+
 string ls();
+string pwd();
 
 int main(int argc, char* argv[])
 {
-	int tcp_socket = socket(AF_INET,SOCK_STREAM,0);
-	if(tcp_socket < 0)
-		perror("cannot create socket");
+  int tcp_socket = socket(AF_INET,SOCK_STREAM,0);
+  if(tcp_socket < 0)
+  {
+    perror("cannot create socket");
+  }//if
+  
+  struct sockaddr_in dest;
+  struct sockaddr_in servaddr;
+  socklen_t socksize = sizeof(struct sockaddr_in);
+  
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  servaddr.sin_port = htons(PORTNUM);
+  
+  const char CONFIRM[] = "Done";
+  const char INVALCMD[] = "Invalid Command";
+  const char ERROR[] = "Error Occurred";
+  
+  bind(tcp_socket,(struct sockaddr* )&servaddr,sizeof(struct sockaddr));
+  listen(tcp_socket,5);
+  int connect_socket = 0;
+    
+  // accept connections
+  while(connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize))
+  {
+    printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
 
-	struct sockaddr_in dest;
-	struct sockaddr_in servaddr;
-	socklen_t socksize = sizeof(struct sockaddr_in);
-
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr.sin_port = htons(PORTNUM);
-
-	bind(tcp_socket,(struct sockaddr* )&servaddr,sizeof(struct sockaddr));
-	listen(tcp_socket,5);
-	int connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize);
-
-	const char CONFIRM[] = "Message Received";
-	const char INVALCMD[] = "Invalid Command";
-	string msg_to_send = "";
-	char message[512];
-
-	while(connect_socket)
-	{
-		printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
-		recv(connect_socket,message,512,0);
-		/* check received commands */
-		const string str = message;
-		//if(str == "get"){} 
-		//else if(str == "put")
-		//else if(str == "delete")
-		if(str == "ls") 
-		{
-			msg_to_send = ls();
-			send(connect_socket,msg_to_send.c_str(),512,0);
-		}
-		//else if(str == "cd")
-		//else if(str == "mkdir")
-		//else if(str == "pwd")
-		//else if(str == "quit")
-		else
-			send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
-
-		
-		/* wait for another connection */
-		connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize); 	
-	}
-	close(tcp_socket);
-	close(connect_socket);
-	return EXIT_SUCCESS;
-}
+    // continue until remote user enters quit
+    for(;;)
+    {
+      string msg_to_send = "";
+      char message[BUF_SIZE];
+      recv(connect_socket,message,BUF_SIZE,0);
+      
+      // split message into two parts
+      char *cmd = strtok(message, " ");
+      char *arg = strtok(NULL, " ");
+      
+      if(strcmp(cmd, "get") == 0){} // if
+      else if(strcmp(cmd, "put") == 0){}// else if
+      else if(strcmp(cmd, "delete") == 0){}// else if
+      else if(strcmp(cmd, "ls") == 0) 
+      {
+      	msg_to_send = ls();
+      	send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
+      }// else if
+      else if(strcmp(cmd, "cd") == 0)
+      {
+      	if(chdir(arg) != 0)
+      	{
+      	  // send error message upon fail
+      	  send(connect_socket,ERROR,BUF_SIZE,0);
+      	}// if
+        else
+        { 
+          send(connect_socket,CONFIRM,BUF_SIZE,0);
+        }
+      }// else if
+      else if(strcmp(cmd, "mkdir") == 0)
+      {
+      	if(mkdir(arg, 0755) != 0)
+      	{
+      	  // send error message upon fail
+      	  send(connect_socket,ERROR,BUF_SIZE,0);
+      	}// if
+        else
+        {
+          send(connect_socket,CONFIRM,BUF_SIZE,0);
+        }// else
+      }// else if
+      else if(strcmp(cmd, "pwd") == 0)
+      {
+        msg_to_send = pwd();
+      	send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
+      }// else if
+      else if(strcmp(cmd, "quit") == 0)
+      {
+      	// end this connection
+      	close(connect_socket);
+      	break;
+      }// else if
+      else
+      {
+	       send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
+      }// else 	
+    }// for
+  }// while
+  close(tcp_socket);
+  
+  return EXIT_SUCCESS;
+}// main
 
 string ls()
 {
-	DIR *directory;
-	struct dirent *reader;
-	/* open current directory */
-	directory = opendir("."); 
-	if(directory == NULL)
-		perror("Cannot open directory");
-	
-	string message = "";
-	while((reader = readdir(directory))!= NULL)
-	{	
-		if(reader->d_name == "." || reader->d_name == "..")
-			//reader = readdir(directory);
-		{}
-		else
-		{
-			message += reader->d_name;
-			message += " ";
-		}
-	}
-	closedir(directory);
-	//cout << message;
-	return message;
-}
+  DIR *directory;
+  struct dirent *reader;
+  /* open current directory */
+  directory = opendir("."); 
+  if(directory == NULL)
+  {  
+    perror("Cannot open directory");
+  }// if
+  
+  string message = "";
+  while((reader = readdir(directory))!= NULL)
+  {
+    string dir_name = reader->d_name;
+    // print everything except directory starting with "."
+    if(dir_name[0] == '.')
+    {
+      continue;
+    }// if
+    else
+    { 
+      message += dir_name;
+      message += "  ";
+    }// else
+  }// while
+  closedir(directory);
+  return message;
+}// ls
+
+string pwd()
+{
+  char return_msg[BUF_SIZE] = "";
+  getcwd(return_msg, BUF_SIZE);
+  return string(return_msg);
+}// pwd
