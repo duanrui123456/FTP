@@ -25,17 +25,21 @@ int main(int argc, char* argv[])
   clientaddr.sin_port = htons(PORTNUM);
   
   connect(tcp_socket,(struct sockaddr *)&clientaddr,sizeof(struct sockaddr));
-  
+
+  const char FSEND[] = "File Send";
+  const char CONFIRM[] = "Done";
+
   // keep accepting commands until user enters quit
   for(;;)
   {
     string command = "";
-    cout << "myftp> ";
+    printf("myftp>%c",' ');
     getline(cin, command);
-
+    // inputing nothing crashes server
+    if(command == "")
+      continue;
 
     // TODO make sure command consists of no more than two tokens
-
 
     send(tcp_socket,command.c_str(),BUF_SIZE,0);
     if(command == "quit")
@@ -45,8 +49,30 @@ int main(int argc, char* argv[])
     
     char message[BUF_SIZE];
     recv(tcp_socket,message,BUF_SIZE,0);
-    cout << message << endl;
+    if((strcmp(message, FSEND)) == 0)
+    {
+      // receive file name
+      recv(tcp_socket,message,BUF_SIZE,0);
+      int file_size = 0;
+      char read_file[BUF_SIZE];
+      FILE *file = fopen(message, "a+");
+
+      // keep receiving file until it reaches end
+      while(recv(tcp_socket,message,BUF_SIZE,0))
+      {
+        if((strcmp(message,CONFIRM)) == 0)
+        {
+            break;
+        }// if
+        fwrite(message,sizeof(char),BUF_SIZE,file);
+      }// while
+      fclose(file);
+    }// if
+    else
+    {
+      printf("%s\n",message);
+    }// else
   }// for
   
   close(tcp_socket);
-}
+}// main

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <dirent.h>
 #include <string>
+#include <libgen.h>
 
 #define PORTNUM 3019
 #define BUF_SIZE 512
@@ -35,7 +36,7 @@ int main(int argc, char* argv[])
   int tcp_socket = socket(AF_INET,SOCK_STREAM,0);
   if(tcp_socket < 0)
   {
-    perror("cannot create socket");
+    perror("Cannot create socket");
   }//if
   
   struct sockaddr_in dest;
@@ -49,6 +50,7 @@ int main(int argc, char* argv[])
   const char CONFIRM[] = "Done";
   const char INVALCMD[] = "Invalid Command";
   const char ERROR[] = "Error Occurred";
+  const char FSEND[] = "File Send";
   
   bind(tcp_socket,(struct sockaddr* )&servaddr,sizeof(struct sockaddr));
   listen(tcp_socket,5);
@@ -70,9 +72,42 @@ int main(int argc, char* argv[])
       char *cmd = strtok(message, " ");
       char *arg = strtok(NULL, " ");
       
-      if(strcmp(cmd, "get") == 0){} // if
+      if(strcmp(cmd, "get") == 0)
+      {
+        int file_size = 0;
+        char read_file[BUF_SIZE];
+        FILE *file = fopen(arg, "r");
+        if(file == NULL)
+        {
+          send(connect_socket,ERROR,BUF_SIZE,0);
+        }// if
+        else
+        {
+          // let client know file is incoming
+          send(connect_socket,FSEND,BUF_SIZE,0);
+          // send file name
+          send(connect_socket,basename(arg),BUF_SIZE,0);
+          while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
+          {
+              send(connect_socket,read_file,BUF_SIZE,0);
+          }// while
+          send(connect_socket,CONFIRM,BUF_SIZE,0);
+          fclose(file);
+        }// else
+      } // if
       else if(strcmp(cmd, "put") == 0){}// else if
-      else if(strcmp(cmd, "delete") == 0){}// else if
+      else if(strcmp(cmd, "delete") == 0)
+      {
+        if(remove(arg) != 0)
+        {
+          // send error message upon fail
+          send(connect_socket,ERROR,BUF_SIZE,0);
+        }// if
+        else
+        {  
+          send(connect_socket,CONFIRM,BUF_SIZE,0);
+        }// else
+      }// else if
       else if(strcmp(cmd, "ls") == 0) 
       {
       	msg_to_send = ls();
@@ -138,15 +173,14 @@ string ls()
   string message = "";
   while((reader = readdir(directory))!= NULL)
   {
-    string dir_name = reader->d_name;
     // print everything except directory starting with "."
-    if(dir_name[0] == '.')
+    if((reader->d_name)[0] == '.')
     {
       continue;
     }// if
     else
     { 
-      message += dir_name;
+      message += reader->d_name;
       message += "  ";
     }// else
   }// while
