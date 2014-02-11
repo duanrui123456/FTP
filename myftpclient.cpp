@@ -49,13 +49,14 @@ int main(int argc, char* argv[])
     
     char message[BUF_SIZE];
     recv(tcp_socket,message,BUF_SIZE,0);
+
     if((strcmp(message, FSEND)) == 0)
     {
       // receive file name
       recv(tcp_socket,message,BUF_SIZE,0);
       int file_size = 0;
       char read_file[BUF_SIZE];
-      FILE *file = fopen(message, "a+");
+      FILE *file = fopen(message, "w");
 
       // keep receiving file until it reaches end
       while(recv(tcp_socket,message,BUF_SIZE,0))
@@ -65,6 +66,7 @@ int main(int argc, char* argv[])
             break;
         }// if
         fwrite(message,sizeof(char),BUF_SIZE,file);
+        memset(read_file,' ',BUF_SIZE);
       }// while
       fclose(file);
     }// if

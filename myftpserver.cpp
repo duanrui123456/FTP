@@ -30,6 +30,7 @@ using namespace std;
 
 string ls();
 string pwd();
+void get(const int *socket, const char *ERROR, const char *FSEND, char* arg);
 
 int main(int argc, char* argv[])
 {
@@ -74,26 +75,8 @@ int main(int argc, char* argv[])
       
       if(strcmp(cmd, "get") == 0)
       {
-        int file_size = 0;
-        char read_file[BUF_SIZE];
-        FILE *file = fopen(arg, "r");
-        if(file == NULL)
-        {
-          send(connect_socket,ERROR,BUF_SIZE,0);
-        }// if
-        else
-        {
-          // let client know file is incoming
-          send(connect_socket,FSEND,BUF_SIZE,0);
-          // send file name
-          send(connect_socket,basename(arg),BUF_SIZE,0);
-          while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
-          {
-              send(connect_socket,read_file,BUF_SIZE,0);
-          }// while
-          send(connect_socket,CONFIRM,BUF_SIZE,0);
-          fclose(file);
-        }// else
+        get(&connect_socket,ERROR,FSEND,arg);
+        send(connect_socket,CONFIRM,BUF_SIZE,0);
       } // if
       else if(strcmp(cmd, "put") == 0){}// else if
       else if(strcmp(cmd, "delete") == 0)
@@ -194,3 +177,29 @@ string pwd()
   getcwd(return_msg, BUF_SIZE);
   return string(return_msg);
 }// pwd
+
+void get(const int *socket, const char *ERROR, const char *FSEND, char* arg)
+{
+  int file_size = 0;
+  char read_file[BUF_SIZE];
+  FILE *file = fopen(arg, "r");
+  if(file == NULL)
+  {
+    send(*socket,ERROR,BUF_SIZE,0);
+  }// if
+  else
+  {
+    // let client know file is incoming
+    send(*socket,FSEND,BUF_SIZE,0);
+    // send file name
+    send(*socket,basename(arg),BUF_SIZE,0);
+    
+    while((file_size = fread(read_file, sizeof(char), BUF_SIZE, file)) > 0)
+    {
+      send(*socket,read_file,BUF_SIZE,0);
+      memset(read_file,' ',BUF_SIZE);
+    }// while
+    fclose(file);
+  }// else
+}
+    

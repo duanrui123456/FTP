@@ -4,7 +4,8 @@ all:$(OBJECT)
 	g++ myftpclient.o -o myftp
 	g++ myftpserver.o -o myftpserver
 $(OBJECT):$(SOURCE)
-	g++ $(SOURCE) -c
+	g++ myftpclient.cpp -c
+	g++ myftpserver.cpp -c 
 run_server:
 	./myftpserver
 run_client:
