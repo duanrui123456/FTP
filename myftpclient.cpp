@@ -10,6 +10,16 @@
 #define BUF_SIZE 512
 
 using namespace std;
+/*
+  known bugs
+    inputing quit -option sends to server when it shouldn't
+*/
+
+const char FSEND[] = "File Send";
+const char CONFIRM[] = "Done";
+const char ERROR[] = "Error Occurred";
+
+int put(const int *socket, const string *cmd);
 
 int main(int argc, char* argv[])
 {
@@ -55,12 +65,10 @@ int main(int argc, char* argv[])
   
   connect(tcp_socket,(struct sockaddr *)&clientaddr,sizeof(struct sockaddr));
 
-  const char FSEND[] = "File Send";
-  const char CONFIRM[] = "Done";
-
   // keep accepting commands until user enters quit
   for(;;)
   {
+    char message[BUF_SIZE];
     string command = "";
     printf("myftp>%c",' ');
     getline(cin, command);
@@ -71,13 +79,28 @@ int main(int argc, char* argv[])
       continue;
     }// if
 
+    if(command.substr(0,3) == "put")
+    {
+      if(put(&tcp_socket,&command) == 0)
+      {
+        printf("%s\n",ERROR);
+        continue;
+      }
+      else
+      {
+        send(tcp_socket,CONFIRM,BUF_SIZE,0);
+        recv(tcp_socket,message,BUF_SIZE,0);
+        continue;
+      }
+    }
+
     send(tcp_socket,command.c_str(),BUF_SIZE,0);
+
     if(command == "quit")
     {
       break;
     }// if
     
-    char message[BUF_SIZE];
     recv(tcp_socket,message,BUF_SIZE,0);
 
     // don't print CONFIRM string
@@ -120,3 +143,28 @@ int main(int argc, char* argv[])
   
   close(tcp_socket);
 }// main
+
+int put(const int *socket, const string *cmd)
+{
+  int file_size = 0;
+  char read_file[BUF_SIZE];
+  FILE *file = fopen(cmd->substr(4,cmd->length()-1).c_str(), "r");
+  if(file == NULL)
+  {
+    return 0;
+  }// if
+  else
+  {
+    // send command
+    send(*socket,cmd->c_str(),BUF_SIZE,0);
+    // send file name
+    //send(*socket,f_name->substr(4,f_name->length()-1).c_str(),BUF_SIZE,0);
+    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
+    {
+      send(*socket,read_file,BUF_SIZE,0);
+      memset(read_file,'\0',BUF_SIZE);
+    }// while
+    fclose(file);
+  }// else
+  return 1;
+}// put

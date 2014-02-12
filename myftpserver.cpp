@@ -34,7 +34,8 @@ const char FSEND[] = "File Send";
 
 string ls();
 string pwd();
-void get(const int *socket, char* arg);
+void get(const int *socket, char *arg);
+void put(const int *socket, char *arg);
 
 int main(int argc, char* argv[])
 {
@@ -92,13 +93,18 @@ int main(int argc, char* argv[])
       // split message into two parts
       char *cmd = strtok(message, " ");
       char *arg = strtok(NULL, " ");
-      
+
       if(strcmp(cmd, "get") == 0)
       {
         get(&connect_socket,arg);
         send(connect_socket,CONFIRM,BUF_SIZE,0);
       } // if
-      else if(strcmp(cmd, "put") == 0){}// else if
+      else if(strcmp(cmd, "put") == 0)
+      {
+        // get file name
+        put(&connect_socket,arg);
+        send(connect_socket,CONFIRM,BUF_SIZE,0);
+      }// else if
       else if(strcmp(cmd, "delete") == 0)
       {
         if(remove(arg) != 0)
@@ -222,4 +228,27 @@ void get(const int *socket, char* arg)
     fclose(file);
   }// else
 }// get
-    
+
+void put(const int *socket, char *arg)
+{
+  FILE *file = fopen(basename(arg), "w");
+  char message[BUF_SIZE];
+  // keep receiving file until it reaches end
+  while(recv(*socket,message,BUF_SIZE,0))
+  {
+    if((strcmp(message,CONFIRM)) == 0)
+    {
+        break;
+    }// if
+    else
+    {
+      int char_count = BUF_SIZE;
+      while(message[char_count-1] == '\0')
+      {
+        char_count--;
+      }// while
+      fwrite(message,sizeof(char),char_count,file);
+    }// else
+  }// while
+  fclose(file);
+}
