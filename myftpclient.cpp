@@ -20,6 +20,7 @@ const char CONFIRM[] = "Done";
 const char ERROR[] = "Error Occurred";
 
 int put(const int *socket, const string *cmd);
+void get(const int *socket);
 
 int main(int argc, char* argv[])
 {
@@ -112,28 +113,7 @@ int main(int argc, char* argv[])
     // receive file
     if((strcmp(message, FSEND)) == 0)
     {
-      // receive file name
-      recv(tcp_socket,message,BUF_SIZE,0);
-      FILE *file = fopen(message, "w");
-
-      // keep receiving file until it reaches end
-      while(recv(tcp_socket,message,BUF_SIZE,0))
-      {
-        if((strcmp(message,CONFIRM)) == 0)
-        {
-            break;
-        }// if
-        else
-        {
-          int char_count = BUF_SIZE;
-          while(message[char_count-1] == '\0')
-          {
-            char_count--;
-          }// while
-          fwrite(message,sizeof(char),char_count,file);
-        }// else
-      }// while
-      fclose(file);
+      get(&tcp_socket);
     }// if
     else
     {
@@ -143,6 +123,33 @@ int main(int argc, char* argv[])
   
   close(tcp_socket);
 }// main
+
+void get(const int *socket)
+{
+  char message[BUF_SIZE];
+  // receive file name
+  recv(*socket,message,BUF_SIZE,0);
+  FILE *file = fopen(message, "w");
+
+  // keep receiving file until it reaches end
+  while(recv(*socket,message,BUF_SIZE,0))
+  {
+    if((strcmp(message,CONFIRM)) == 0)
+    {
+        break;
+    }// if
+    else
+    {
+      int char_count = BUF_SIZE;
+      while(message[char_count-1] == '\0')
+      {
+        char_count--;
+      }// while
+      fwrite(message,sizeof(char),char_count,file);
+    }// else
+  }// while
+  fclose(file);
+}// get
 
 int put(const int *socket, const string *cmd)
 {
@@ -157,8 +164,6 @@ int put(const int *socket, const string *cmd)
   {
     // send command
     send(*socket,cmd->c_str(),BUF_SIZE,0);
-    // send file name
-    //send(*socket,f_name->substr(4,f_name->length()-1).c_str(),BUF_SIZE,0);
     while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
     {
       send(*socket,read_file,BUF_SIZE,0);
