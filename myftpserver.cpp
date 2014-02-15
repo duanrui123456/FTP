@@ -16,7 +16,7 @@ using namespace std;
 
 /*	these are the function we need to implement
 	get----------done
-	put
+	put----------done
 	delete-------done
 	ls-----------done
 	cd-----------done
@@ -97,11 +97,9 @@ int main(int argc, char* argv[])
       if(strcmp(cmd, "get") == 0)
       {
         get(&connect_socket,arg);
-        send(connect_socket,CONFIRM,BUF_SIZE,0);
       } // if
       else if(strcmp(cmd, "put") == 0)
       {
-        // get file name
         put(&connect_socket,arg);
         send(connect_socket,CONFIRM,BUF_SIZE,0);
       }// else if
@@ -114,7 +112,8 @@ int main(int argc, char* argv[])
         }// if
         else
         {  
-          send(connect_socket,CONFIRM,BUF_SIZE,0);
+          msg_to_send = "Removing ";
+          send(connect_socket,msg_to_send.append(arg).c_str(),BUF_SIZE,0);
         }// else
       }// else if
       else if(strcmp(cmd, "ls") == 0) 
@@ -148,7 +147,7 @@ int main(int argc, char* argv[])
       }// else if
       else if(strcmp(cmd, "pwd") == 0)
       {
-        msg_to_send = pwd();
+        msg_to_send = "Remote working directory: " + pwd();
       	send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
       }// else if
       else if(strcmp(cmd, "quit") == 0)
@@ -173,7 +172,7 @@ string ls()
 {
   DIR *directory;
   struct dirent *reader;
-  /* open current directory */
+  // open current directory
   directory = opendir("."); 
   if(directory == NULL)
   {  
@@ -199,7 +198,7 @@ string ls()
 }// ls
 
 string pwd()
-{
+{ 
   char return_msg[BUF_SIZE] = "";
   getcwd(return_msg, BUF_SIZE);
   return string(return_msg);
@@ -219,11 +218,17 @@ void get(const int *socket, char* arg)
     // let client know file is incoming
     send(*socket,FSEND,BUF_SIZE,0);
     // send file name
-    send(*socket,basename(arg),BUF_SIZE,0);
-    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
+    send(*socket,arg,BUF_SIZE,0);
+    // keep sending until end of file
+    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file))
     {
-      send(*socket,read_file,BUF_SIZE,0);
+      send(*socket,read_file,file_size,0);
       memset(read_file,'\0',BUF_SIZE);
+      // end of file reached
+      if(file_size == 0)
+      {
+        break;
+      }// if
     }// while
     fclose(file);
   }// else
@@ -231,24 +236,18 @@ void get(const int *socket, char* arg)
 
 void put(const int *socket, char *arg)
 {
-  FILE *file = fopen(basename(arg), "w");
+  int file_size = 0;
   char message[BUF_SIZE];
-  // keep receiving file until it reaches end
-  while(recv(*socket,message,BUF_SIZE,0))
+  FILE *file = fopen(basename(arg), "w");
+  // keep receiving file until it CONFIRM is sent
+  while(file_size = recv(*socket,message,BUF_SIZE,0))
   {
-    if((strcmp(message,CONFIRM)) == 0)
+    fwrite(message,sizeof(char),file_size,file);
+    // client is done sending
+    if(file_size < BUF_SIZE)
     {
-        break;
-    }// if
-    else
-    {
-      int char_count = BUF_SIZE;
-      while(message[char_count-1] == '\0')
-      {
-        char_count--;
-      }// while
-      fwrite(message,sizeof(char),char_count,file);
-    }// else
+      break;
+    }
   }// while
   fclose(file);
-}
+}// put

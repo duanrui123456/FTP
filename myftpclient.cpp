@@ -84,15 +84,16 @@ int main(int argc, char* argv[])
     {
       if(put(&tcp_socket,&command) == 0)
       {
+        // print error if file does not exist
         printf("%s\n",ERROR);
         continue;
-      }
+      }// if
       else
       {
-        send(tcp_socket,CONFIRM,BUF_SIZE,0);
+        // server received file
         recv(tcp_socket,message,BUF_SIZE,0);
         continue;
-      }
+      }// else
     }
 
     send(tcp_socket,command.c_str(),BUF_SIZE,0);
@@ -126,27 +127,24 @@ int main(int argc, char* argv[])
 
 void get(const int *socket)
 {
+  int file_size = 0;
   char message[BUF_SIZE];
   // receive file name
   recv(*socket,message,BUF_SIZE,0);
-  FILE *file = fopen(message, "w");
+  FILE *file = fopen(basename(message), "w");
 
-  // keep receiving file until it reaches end
-  while(recv(*socket,message,BUF_SIZE,0))
-  {
-    if((strcmp(message,CONFIRM)) == 0)
+  // print to console
+  printf("Fetching %s\n",message);
+
+  // keep receiving file until it CONFIRM is received
+  while(file_size = recv(*socket,message,BUF_SIZE,0))
+  {  
+    fwrite(message,sizeof(char),file_size,file);
+    // server is done sending
+    if(file_size < BUF_SIZE)
     {
-        break;
+      break;
     }// if
-    else
-    {
-      int char_count = BUF_SIZE;
-      while(message[char_count-1] == '\0')
-      {
-        char_count--;
-      }// while
-      fwrite(message,sizeof(char),char_count,file);
-    }// else
   }// while
   fclose(file);
 }// get
@@ -162,12 +160,20 @@ int put(const int *socket, const string *cmd)
   }// if
   else
   {
+    // print to console
+    printf("Uploading %s\n",cmd->substr(4,cmd->length()-1).c_str());
     // send command
     send(*socket,cmd->c_str(),BUF_SIZE,0);
-    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file) > 0)
+    // keep sending file until end of file
+    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file))
     {
-      send(*socket,read_file,BUF_SIZE,0);
+      send(*socket,read_file,file_size,0);
       memset(read_file,'\0',BUF_SIZE);
+      // end of file reached
+      if(file_size == 0)
+      {
+        break;
+      }// if
     }// while
     fclose(file);
   }// else
