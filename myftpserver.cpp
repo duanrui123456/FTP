@@ -9,6 +9,8 @@
 #include <dirent.h>
 #include <string>
 #include <libgen.h>
+#include <pthread.h>
+#include <map>
 
 #define BUF_SIZE 512
 
@@ -16,7 +18,7 @@ using namespace std;
 
 /*	these are the function we need to implement
 	get----------done
-	put----------done
+	put
 	delete-------done
 	ls-----------done
 	cd-----------done
@@ -37,6 +39,19 @@ string pwd();
 void get(const int *socket, char *arg);
 void put(const int *socket, char *arg);
 
+void *new_thread(void*);
+
+// to be passed in as the argument during pthread_create. these are passed in due to their need to be deleted at the end of the thread
+struct thrd_info
+{
+  int *socket;
+  pthread_t *thrd_id;
+  struct sockaddr_in *dest_info;
+};// struct thrd_info
+
+// keeps track of the current directory for each thread using its socket number
+map<int, char*> live_connections;
+
 int main(int argc, char* argv[])
 {
   // check for cmd line arg
@@ -49,7 +64,7 @@ int main(int argc, char* argv[])
   // retrieve port number to listen on
   int port_num = atoi(argv[1]);
 
-  // tell the user to screw off if he enters a bad port number
+  // tell the user to screw off if he enters a bad port number.  atoi() error (-1) is inherently handled here.
   if(port_num < 1 || port_num > 65535)
   {
     cout << argv[1] << " is not a valid port number." << endl;
@@ -66,7 +81,6 @@ int main(int argc, char* argv[])
     perror("Cannot create socket");
   }//if
   
-  struct sockaddr_in dest;
   struct sockaddr_in servaddr;
   socklen_t socksize = sizeof(struct sockaddr_in);
   
@@ -76,95 +90,28 @@ int main(int argc, char* argv[])
   
   bind(tcp_socket,(struct sockaddr* )&servaddr,sizeof(struct sockaddr));
   listen(tcp_socket,5);
-  int connect_socket = 0;
-    
-  // accept connections
-  while(connect_socket = accept(tcp_socket,(struct sockaddr*)&dest,&socksize))
+
+  // accept connections forever
+  for(;;)
   {
+    int *connect_socket = new int;
+    pthread_t *thread_id = new pthread_t;
+    struct sockaddr_in *dest = new struct sockaddr_in;
+
+    struct thrd_info *this_thrd_info = new struct thrd_info;
+    this_thrd_info->socket = connect_socket;
+    this_thrd_info->thrd_id = thread_id;
+    this_thrd_info->dest_info = dest;
+
+    *connect_socket = accept(tcp_socket, (struct sockaddr*) dest, &socksize);
     // printf("Incoming Transmission from %s\n",inet_ntoa(dest.sin_addr));
 
-    // continue until remote user enters quit
-    for(;;)
-    {
-      string msg_to_send = "";
-      char message[BUF_SIZE];
-      recv(connect_socket,message,BUF_SIZE,0);
-      
-      // split message into two parts
-      char *cmd = strtok(message, " ");
-      char *arg = strtok(NULL, " ");
+    live_connections[*connect_socket] = home_dir;
+    pthread_create(thread_id, NULL, new_thread, this_thrd_info);
+  }// for
 
-      if(strcmp(cmd, "get") == 0)
-      {
-        get(&connect_socket,arg);
-      } // if
-      else if(strcmp(cmd, "put") == 0)
-      {
-        put(&connect_socket,arg);
-        send(connect_socket,CONFIRM,BUF_SIZE,0);
-      }// else if
-      else if(strcmp(cmd, "delete") == 0)
-      {
-        if(remove(arg) != 0)
-        {
-          // send error message upon fail
-          send(connect_socket,ERROR,BUF_SIZE,0);
-        }// if
-        else
-        {  
-          msg_to_send = "Removing ";
-          send(connect_socket,msg_to_send.append(arg).c_str(),BUF_SIZE,0);
-        }// else
-      }// else if
-      else if(strcmp(cmd, "ls") == 0) 
-      {
-      	msg_to_send = ls();
-      	send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
-      }// else if
-      else if(strcmp(cmd, "cd") == 0)
-      {
-      	if(chdir(arg) != 0)
-      	{
-      	  // send error message upon fail
-      	  send(connect_socket,ERROR,BUF_SIZE,0);
-      	}// if
-        else
-        { 
-          send(connect_socket,CONFIRM,BUF_SIZE,0);
-        }
-      }// else if
-      else if(strcmp(cmd, "mkdir") == 0)
-      {
-      	if(mkdir(arg, 0755) != 0)
-      	{
-      	  // send error message upon fail
-      	  send(connect_socket,ERROR,BUF_SIZE,0);
-      	}// if
-        else
-        {
-          send(connect_socket,CONFIRM,BUF_SIZE,0);
-        }// else
-      }// else if
-      else if(strcmp(cmd, "pwd") == 0)
-      {
-        msg_to_send = "Remote working directory: " + pwd();
-      	send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
-      }// else if
-      else if(strcmp(cmd, "quit") == 0)
-      {
-      	// end this connection
-      	close(connect_socket);
-	      chdir(home_dir);
-      	break;
-      }// else if
-      else
-      {
-        send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
-      }// else 	
-    }// for
-  }// while
+  // program should never reach this since it should stay in the above loop forever
   close(tcp_socket);
-  
   return EXIT_SUCCESS;
 }// main
 
@@ -172,7 +119,7 @@ string ls()
 {
   DIR *directory;
   struct dirent *reader;
-  // open current directory
+  /* open current directory */
   directory = opendir("."); 
   if(directory == NULL)
   {  
@@ -251,3 +198,106 @@ void put(const int *socket, char *arg)
   }// while
   fclose(file);
 }// put
+
+void *new_thread(void * thrd_info_struct)
+{
+  // get info on this connection
+  struct thrd_info *this_thrd_info = (struct thrd_info*) thrd_info_struct;
+  
+  int connect_socket = *(this_thrd_info->socket);
+  
+  // continue until remote user enters quit
+  for(;;)
+  {
+    string msg_to_send = "";
+    char message[BUF_SIZE];
+
+    recv(connect_socket,message,BUF_SIZE,0);
+    
+    // split message into two parts
+    char *cmd = strtok(message, " ");
+    char *arg = strtok(NULL, " ");
+    
+    // switch this thread to its current directory
+    chdir(live_connections[connect_socket]);
+    
+    if(strcmp(cmd, "get") == 0)
+    {
+      get(&connect_socket,arg);
+    } // if
+    else if(strcmp(cmd, "put") == 0)
+    {
+      // get file name
+      put(&connect_socket,arg);
+      send(connect_socket,CONFIRM,BUF_SIZE,0);
+    }// else if
+    else if(strcmp(cmd, "delete") == 0)
+    {
+      if(remove(arg) != 0)
+      {
+	// send error message upon fail
+	send(connect_socket,ERROR,BUF_SIZE,0);
+      }// if
+      else
+      {  
+	msg_to_send = "Removing ";
+	send(connect_socket,msg_to_send.append(arg).c_str(),BUF_SIZE,0);
+      }// else
+    }// else if
+    else if(strcmp(cmd, "ls") == 0) 
+    {
+      msg_to_send = ls();
+      send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
+    }// else if
+    else if(strcmp(cmd, "cd") == 0)
+    {
+      if(chdir(arg) != 0)
+      {
+	// send error message upon fail
+	send(connect_socket,ERROR,BUF_SIZE,0);
+      }// if
+      else
+      { 
+	send(connect_socket,CONFIRM,BUF_SIZE,0);
+	
+	char current_dir[BUF_SIZE];
+	memset(current_dir, 0, BUF_SIZE);
+	getcwd(current_dir, BUF_SIZE);
+	live_connections[connect_socket] = current_dir;
+      }//else
+    }// else if
+    else if(strcmp(cmd, "mkdir") == 0)
+    {
+      if(mkdir(arg, 0755) != 0)
+      {
+	// send error message upon fail
+	send(connect_socket,ERROR,BUF_SIZE,0);
+      }// if
+      else
+      {
+	send(connect_socket,CONFIRM,BUF_SIZE,0);
+      }// else
+    }// else if
+    else if(strcmp(cmd, "pwd") == 0)
+    {
+      msg_to_send = "Remote working directory: " + pwd();
+      send(connect_socket,msg_to_send.c_str(),BUF_SIZE,0);
+    }// else if
+    else if(strcmp(cmd, "quit") == 0)
+    {
+      // end this connection
+      break;
+    }// else if
+    else
+    {
+      send(connect_socket,INVALCMD,sizeof(INVALCMD),0);
+    }// else 	
+  }// for
+  
+  live_connections.erase(connect_socket);
+  close(connect_socket);
+  delete this_thrd_info->socket;
+  delete this_thrd_info->thrd_id;
+  delete this_thrd_info->dest_info;
+  delete this_thrd_info;
+}// new_thread
