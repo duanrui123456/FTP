@@ -10,10 +10,6 @@
 #define BUF_SIZE 512
 
 using namespace std;
-/*
-  known bugs
-    inputing quit -option sends to server when it shouldn't
-*/
 
 const char FSEND[] = "File Send";
 const char CONFIRM[] = "Done";
@@ -90,10 +86,8 @@ int main(int argc, char* argv[])
       }// if
       else
       {
-        // server received file
-        recv(tcp_socket,message,BUF_SIZE,0);
         continue;
-      }// else
+      }
     }
 
     send(tcp_socket,command.c_str(),BUF_SIZE,0);
@@ -128,7 +122,7 @@ int main(int argc, char* argv[])
 void get(const int *socket)
 {
   int file_size = 0;
-  char message[BUF_SIZE];
+  char message[BUF_SIZE+1];
   // receive file name
   recv(*socket,message,BUF_SIZE,0);
   FILE *file = fopen(basename(message), "w");
@@ -137,11 +131,11 @@ void get(const int *socket)
   printf("Fetching %s\n",message);
 
   // keep receiving file until it CONFIRM is received
-  while(file_size = recv(*socket,message,BUF_SIZE,0))
+  while(file_size = recv(*socket,message,BUF_SIZE+1,0))
   {  
     fwrite(message,sizeof(char),file_size,file);
     // server is done sending
-    if(file_size < BUF_SIZE)
+    if(file_size <= BUF_SIZE)
     {
       break;
     }// if
@@ -152,7 +146,7 @@ void get(const int *socket)
 int put(const int *socket, const string *cmd)
 {
   int file_size = 0;
-  char read_file[BUF_SIZE];
+  char read_file[BUF_SIZE+1];
   FILE *file = fopen(cmd->substr(4,cmd->length()-1).c_str(), "r");
   if(file == NULL)
   {
@@ -165,7 +159,7 @@ int put(const int *socket, const string *cmd)
     // send command
     send(*socket,cmd->c_str(),BUF_SIZE,0);
     // keep sending file until end of file
-    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file))
+    while(file_size = fread(read_file, sizeof(char), BUF_SIZE+1, file))
     {
       send(*socket,read_file,file_size,0);
       memset(read_file,'\0',BUF_SIZE);

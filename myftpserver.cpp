@@ -154,7 +154,7 @@ string pwd()
 void get(const int *socket, char* arg)
 {
   int file_size = 0;
-  char read_file[BUF_SIZE];
+  char read_file[BUF_SIZE+1];
   FILE *file = fopen(arg, "r");
   if(file == NULL)
   {
@@ -167,7 +167,7 @@ void get(const int *socket, char* arg)
     // send file name
     send(*socket,arg,BUF_SIZE,0);
     // keep sending until end of file
-    while(file_size = fread(read_file, sizeof(char), BUF_SIZE, file))
+    while(file_size = fread(read_file, sizeof(char), BUF_SIZE+1, file))
     {
       send(*socket,read_file,file_size,0);
       memset(read_file,'\0',BUF_SIZE);
@@ -184,14 +184,14 @@ void get(const int *socket, char* arg)
 void put(const int *socket, char *arg)
 {
   int file_size = 0;
-  char message[BUF_SIZE];
+  char message[BUF_SIZE+1];
   FILE *file = fopen(basename(arg), "w");
   // keep receiving file until it CONFIRM is sent
-  while(file_size = recv(*socket,message,BUF_SIZE,0))
+  while(file_size = recv(*socket,message,BUF_SIZE+1,0))
   {
     fwrite(message,sizeof(char),file_size,file);
     // client is done sending
-    if(file_size < BUF_SIZE)
+    if(file_size <= BUF_SIZE)
     {
       break;
     }
@@ -229,7 +229,6 @@ void *new_thread(void * thrd_info_struct)
     {
       // get file name
       put(&connect_socket,arg);
-      send(connect_socket,CONFIRM,BUF_SIZE,0);
     }// else if
     else if(strcmp(cmd, "delete") == 0)
     {
