@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
   // retrieve port number to listen for normal commands on
   int port_num1 = atoi(argv[1]);
 
-  // tell the user to screw off if he enters a bad port number.  atoi() error (-1) is inherently handled here.
+  // bad port number.  atoi() error (-1) is inherently handled here.
   if(port_num1 < 1 || port_num1 > 65535)
   {
     cout << argv[1] << " is not a valid port number." << endl;
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
   // retrieve port number to listen for terminate commands on
   int port_num2 = atoi(argv[2]);
 
-  // tell the user to screw off if he enters a bad port number.  atoi() error (-1) is inherently handled here.
+  // bad port number.  atoi() error (-1) is inherently handled here.
   if(port_num2 < 1 || port_num2 > 65535)
   {
     cout << argv[2] << " is not a valid port number." << endl;
