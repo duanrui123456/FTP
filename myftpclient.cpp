@@ -41,8 +41,7 @@ int main(int argc, char* argv[])
   
   // retrieve server location
   in_addr_t server_ip = inet_addr(argv[1]);
-
-  // call the user dumb for bad input
+  
   // note: inet_addr() returns -1 on error, but in_addr_t is unsigned, so -1 signed = 4294967295 unsigned
   if(server_ip == 4294967295)
   {
@@ -54,7 +53,7 @@ int main(int argc, char* argv[])
   int port_num = atoi(argv[2]);
   int term_port_num = atoi(argv[3]);
 
-  // tell the user to screw off if he enters a bad port number, an atoi() error (-1) is inherently handled here
+  // bad port number, an atoi() error (-1) is inherently handled here
   if(port_num < 1 || port_num > 65535)
   {
     cout << argv[2] << " is not a valid port number." << endl;
